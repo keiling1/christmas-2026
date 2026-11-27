@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Our 2026 Advent Calendar</title>
+  <style>
+    :root {
+      --bg: #162620;
+      --card-bg: #1f352d;
+      --card-open: #2a473c;
+      --gold: #e5c17b;
+      --cream: #f8f3e6;
+      --accent: #b84a39;
+      --muted: #9eb0a7;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Noto Sans TC", "PingFang TC", sans-serif;
+      background: radial-gradient(circle at top, #1f382f 0%, var(--bg) 70%);
+      color: var(--cream);
+      min-height: 100vh;
+      padding: 32px 16px 90px;
+      overflow-x: hidden;
+    }
+
+    #snow {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .container {
+      position: relative;
+      z-index: 2;
+      max-width: 820px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .subtitle {
+      color: var(--gold);
+      font-size: 0.85rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      font-size: clamp(1.8rem, 5vw, 2.6rem);
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      margin-bottom: 14px;
+      user-select: none;
+    }
+
+    .status-banner {
+      display: inline-block;
+      background: rgba(229, 193, 123, 0.14);
+      border: 1px solid rgba(229, 193, 123, 0.35);
+      color: var(--gold);
+      padding: 8px 18px;
+      border-radius: 999px;
+      font-size: 0.92rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap: 14px;
+    }
+
+    .door {
+      aspect-ratio: 1 / 1;
+      background: var(--card-bg);
+      border: 1px solid rgba(229, 193, 123, 0.25);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      user-select: none;
+    }
+
+    .door:hover:not(.locked) {
+      transform: translateY(-4px);
+      border-color: var(--gold);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+    }
+
+    .door.locked {
+      opacity: 0.48;
+      cursor: not-allowed;
+    }
+
+    .door.opened {
+      background: var(--card-open);
+      border-color: rgba(229, 193, 123, 0.65);
+    }
+
+    .door.today {
+      border: 2px solid var(--gold);
+      box-shadow: 0 0 18px rgba(229, 193, 123, 0.28);
+    }
+
+    .door.special {
+      border-color: rgba(184, 74, 57, 0.7);
+    }
+
+    .door-num {
+      font-size: 1.9rem;
+      font-weight: 700;
+      color: var(--cream);
+    }
+
+    .door-tag {
+      font-size: 0.74rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .door.opened .door-tag {
+      color: var(--gold);
+      font-weight: 600;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 18, 15, 0.8);
+      backdrop-filter: blur(6px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 10;
+    }
+
+    .modal-backdrop.active {
+      display: flex;
+    }
+
+    .modal {
+      background: #fdfaf2;
+      color: #24332d;
+      width: 100%;
+      max-width: 440px;
+      border-radius: 20px;
+      padding: 28px 24px;
+      position: relative;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+      animation: pop 0.22s ease-out;
+    }
+
+    @keyframes pop {
+      from { transform: scale(0.92); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 14px;
+      right: 16px;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      color: #6b7b74;
+      cursor: pointer;
+    }
+
+    .modal-date {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.1em;
+    }
+
+    .modal-title {
+      font-size: 1.38rem;
+      margin: 6px 0 16px;
+    }
+
+    .lottery-box {
+      background: #1f352d;
+      color: var(--cream);
+      border-radius: 14px;
+      padding: 18px 16px;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .lottery-label {
+      font-size: 0.78rem;
+      color: var(--gold);
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+
+    .lottery-number {
+      font-size: 2.6rem;
+      font-weight: 800;
+      color: var(--cream);
+      line-height: 1.1;
+      margin: 6px 0 12px;
+      transition: transform 0.15s ease;
+    }
+
+    .lottery-number.pop-num {
+      transform: scale(1.18);
+      color: var(--gold);
+    }
+
+    .draw-btn {
+      background: var(--gold);
+      color: #162620;
+      border: none;
+      border-radius: 999px;
+      padding: 10px 22px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s, opacity 0.15s;
+    }
+
+    .draw-btn:hover:not(:disabled) {
+      transform: scale(1.03);
+    }
+
+    .draw-btn:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    .mission-box {
+      background: #f2ead8;
+      border-left: 4px solid var(--accent);
+      padding: 12px 14px;
+      border-radius: 8px;
+      margin-bottom: 14px;
+      font-size: 0.92rem;
+      line-height: 1.55;
+    }
+
+    .mission-label {
+      font-weight: 700;
+      font-size: 0.78rem;
+      color: var(--accent);
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .modal-msg {
+      font-size: 0.95rem;
+      line-height: 1.75;
+      margin-bottom: 16px;
+      white-space: pre-line;
+    }
+
+    .music-link {
+      display: inline-block;
+      color: #1f352d;
+      font-size: 0.88rem;
+      font-weight: 600;
+      text-decoration: none;
+      border-bottom: 1px dashed #1f352d;
+    }
+
+    /* 隱藏式測試工具（連點大標題 5 下顯示） */
+    .dev-bar {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      z-index: 20;
+      display: none;
+      gap: 8px;
+    }
+
+    .dev-bar.visible {
+      display: flex;
+    }
+
+    .dev-btn {
+      background: rgba(0, 0, 0, 0.65);
+      color: var(--cream);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="snow"></canvas>
+
+  <div class="container">
+    <header>
+      <div class="subtitle">December 1 – 24</div>
+      <h1 id="mainTitle">我們的聖誕倒數月曆</h1>
+      <div class="status-banner" id="statusBanner">載入中...</div>
+    </header>
+
+    <main class="grid" id="calendarGrid"></main>
+  </div>
+
+  <!-- 每日開箱卡片 -->
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal">
+      <button class="close-btn" id="closeModal">&times;</button>
+      <div class="modal-date" id="modalDate"></div>
+      <h2 class="modal-title" id="modalTitle"></h2>
+
+      <div class="lottery-box">
+        <div class="lottery-label" id="lotteryLabel">今日指定禮物</div>
+        <div class="lottery-number" id="lotteryNumber">#?</div>
+        <button class="draw-btn" id="drawBtn">🎰 抽出今天要拆幾號！</button>
+      </div>
+
+      <div class="mission-box">
+        <span class="mission-label">開箱前小任務</span>
+        <span id="modalMission"></span>
+      </div>
+      <p class="modal-msg" id="modalMsg"></p>
+      <a class="music-link" id="modalMusic" href="#" target="_blank" rel="noopener">🎵 聽一首今天的專屬 BGM</a>
+    </div>
+  </div>
+
+  <div class="dev-bar" id="devBar">
+    <button class="dev-btn" id="devToggle">測試模式：關</button>
+    <button class="dev-btn" id="resetBtn">重置抽獎紀錄</button>
+  </div>
+
+  <script>
+    const calendarData = [
+      {
+        day: 1,
+        title: "倒數開始！來自香港的遠端連線",
+        mission: "先泡一杯熱的，拍一張 #1 號禮物的照片傳給我再拆。",
+        message: "雖然我人還在香港，但 12 月的儀式感不能缺席！\n前三天按順序拆，4 號開始就要進入每日盲盒抽獎囉。",
+        music: "https://www.youtube.com/watch?v=w8XHkRQ49BM"
+      },
+      {
+        day: 2,
+        title: "再睡一覺我就回來了",
+        mission: "把大燈關掉只留小燈，聽著今天的歌拆開 #2。",
+        message: "明天就飛回台北啦！拆完記得跟我說喜不喜歡。",
+        music: "https://www.youtube.com/watch?v=uKnGqpwtrrU"
+      },
+      {
+        day: 3,
+        title: "歡迎我回來！今天一起拆",
+        mission: "等我回到家、兩個人坐在一起再拆 #3 號禮物。",
+        message: "終於不用遠端連線了！明天開始每天都要來這裡抽號碼喔。",
+        music: ""
+      },
+      {
+        day: 4,
+        title: "盲盒猜猜看",
+        mission: "先拿起來搖一搖、捏一捏，猜裡面是什麼！猜對有賞，猜錯要親對方一下。",
+        message: "盲盒抽獎正式開跑！連我自己都忘了這包裡面是什麼，快拆開看看吧。",
+        music: ""
+      },
+      {
+        day: 5,
+        title: "微光開箱",
+        mission: "把房間大燈關掉，只留小夜燈或手機手電筒，在很有氣氛的微光下拆禮物。",
+        message: "燈光美、氣氛佳，今天抽到的這包會是什麼驚喜呢？",
+        music: "https://www.youtube.com/watch?v=k2IBtaF_jM4"
+      },
+      {
+        day: 6,
+        title: "誇誇時間",
+        mission: "看著對方眼睛，說出最近覺得對方最可愛或最帥的一個瞬間，講完才能拆。",
+        message: "不准敷衍喔！講完就按下抽獎按鈕吧。",
+        music: ""
+      },
+      {
+        day: 7,
+        title: "猜拳決定速度",
+        mission: "猜拳！贏的人決定今天拆禮物的速度——「3 秒極速撕開」還是「15 秒超慢動作」。",
+        message: "一週過去了，準備好迎接今天的隨機驚喜了嗎？",
+        music: ""
+      },
+      {
+        day: 8,
+        title: "乾杯儀式",
+        mission: "兩個人各自倒一杯熱飲或水，碰杯說聲「倒數快樂」再開箱。",
+        message: "乾杯！祝你今天抽到最喜歡的一包。",
+        music: ""
+      },
+      {
+        day: 9,
+        title: "今年最愛合照",
+        mission: "各自滑手機翻出一張今年最喜歡的兩人合照給對方看，再按下抽獎按鈕。",
+        message: "今年一起去了好多地方，謝謝你一直陪在我身邊。",
+        music: ""
+      },
+      {
+        day: 10,
+        title: "閉眼盲拆",
+        mission: "全程閉上眼睛，只靠雙手把禮物拆開，憑觸感猜猜看是什麼才能睜眼。",
+        message: "不准偷看喔！猜猜看這包是什麼形狀？",
+        music: ""
+      },
+      {
+        day: 11,
+        title: "默契大考驗",
+        mission: "倒數三秒，兩個人同時說出「這週末最想一起吃的食物」，沒默契也要笑著開箱。",
+        message: "三、二、一，開始！看看我們今天心靈有沒有相通。",
+        music: ""
+      },
+      {
+        day: 12,
+        title: "十秒充電抱",
+        mission: "先緊緊抱住對方 10 秒鐘，期間不能講話，充完電再拆禮物。",
+        message: "倒數剛好過一半囉！幫彼此充個電再繼續。",
+        music: ""
+      },
+      {
+        day: 13,
+        title: "自帶音效組",
+        mission: "拆禮物的時候，另一個人要在旁邊配音（拆炸彈倒數、或打開寶箱的登登登登～）。",
+        message: "音效組請就位！越浮誇越好。",
+        music: ""
+      },
+      {
+        day: 14,
+        title: "本週暖心小事",
+        mission: "跟對方說一件這星期他做過、讓你覺得很暖心或很感謝的小事。",
+        message: "生活裡的小細節最讓人心動，今天也辛苦啦。",
+        music: ""
+      },
+      {
+        day: 15,
+        title: "貼貼抽獎",
+        mission: "兩個人靠在一起、頭貼著頭，一起伸手按下今天的抽獎按鈕。",
+        message: "兩隻手一起按，手氣應該會比較好吧！",
+        music: ""
+      },
+      {
+        day: 16,
+        title: "浮誇開箱照",
+        mission: "拿著還沒拆的禮物，擺出最浮誇的「網美／業配」表情拍一張照留念。",
+        message: "拍完記得存起來，以後回顧一定很好笑。",
+        music: ""
+      },
+      {
+        day: 17,
+        title: "點歌台",
+        mission: "由今天拆禮物的人點一首現在想聽的歌，音樂一下就開拆。",
+        message: "今天由你當 DJ！配著你最喜歡的歌開箱吧。",
+        music: ""
+      },
+      {
+        day: 18,
+        title: "兩指挑戰",
+        mission: "今天只能用兩根手指頭（大拇指＋食指）把包裝拆開，不能偷用其他手指！",
+        message: "考驗手巧的時候到了，加油！",
+        music: ""
+      },
+      {
+        day: 19,
+        title: "明年小願望",
+        mission: "說一個明年兩個人一定要一起去的地方，或想一起完成的小事。",
+        message: "說出來就要打勾勾，明年我們一起去實現！",
+        music: ""
+      },
+      {
+        day: 20,
+        title: "肩膀鬆一下",
+        mission: "互相幫對方按肩膀 30 秒，放鬆完再來開今天的盲盒。",
+        message: "離聖誕節剩不到一週了，先幫彼此馬殺雞一下。",
+        music: ""
+      },
+      {
+        day: 21,
+        title: "電視購物台",
+        mission: "抽到號碼後，先用「購物台主持人」的浮誇語氣介紹這包還沒拆的禮物 10 秒鐘。",
+        message: "「各位觀眾！今天這包錯過就沒有了！」快開始你的表演。",
+        music: ""
+      },
+      {
+        day: 22,
+        title: "合作開箱",
+        mission: "今天由「送禮物的人」幫忙拆開第一層包裝，再交給對方揭曉答案。",
+        message: "剩沒幾包了，今天換我先幫你開個頭！",
+        music: ""
+      },
+      {
+        day: 23,
+        title: "平安夜預告",
+        mission: "這是最後一包盲盒！先說一件明天平安夜最期待的事，再抽出今天的神祕號碼。",
+        message: "明天就是壓軸的 #24 號了，好捨不得快抽完喔！",
+        music: "https://www.youtube.com/watch?v=Bc-s6DAcqWY"
+      },
+      {
+        day: 24,
+        title: "平安夜快樂！壓軸大結局",
+        mission: "給彼此一個大大的擁抱，再拆開最後一份 #24 號禮物。",
+        message: "謝謝你陪我玩了整整 24 天的倒數！Merry Christmas 🎄✨",
+        music: "https://www.youtube.com/watch?v=y3xSv4C2M5w"
+      }
+    ];
+
+    const FIXED_DAYS = [1, 2, 3, 24];
+    const LOTTERY_POOL = Array.from({ length: 20 }, (_, i) => i + 4);
+
+    let previewMode = false;
+    let currentDay = null;
+    let isRolling = false;
+    let titleClicks = 0;
+
+    let drawnMap = JSON.parse(localStorage.getItem("adventDrawnMap") || "{}");
+
+    const grid = document.getElementById("calendarGrid");
+    const statusBanner = document.getElementById("statusBanner");
+    const modalBackdrop = document.getElementById("modalBackdrop");
+    const lotteryLabel = document.getElementById("lotteryLabel");
+    const lotteryNumber = document.getElementById("lotteryNumber");
+    const drawBtn = document.getElementById("drawBtn");
+    const devBar = document.getElementById("devBar");
+    const devToggle = document.getElementById("devToggle");
+
+    // 連點大標題 5 下開關隱藏測試列
+    document.getElementById("mainTitle").addEventListener("click", () => {
+      titleClicks++;
+      if (titleClicks >= 5) {
+        devBar.classList.toggle("visible");
+        titleClicks = 0;
+      }
+    });
+
+    function saveDrawnMap() {
+      localStorage.setItem("adventDrawnMap", JSON.stringify(drawnMap));
+    }
+
+    function getRemainingNumbers() {
+      const used = Object.values(drawnMap);
+      return LOTTERY_POOL.filter(n => !used.includes(n));
+    }
+
+    function updateBanner() {
+      const now = new Date();
+      const returnDate = new Date(2026, 11, 3);
+      const xmasDate = new Date(2026, 11, 25);
+
+      if (now < returnDate) {
+        const diffDays = Math.ceil((returnDate - now) / (1000 * 60 * 60 * 24));
+        statusBanner.textContent = `✈️ 距離我從香港回來還有 ${diffDays} 天`;
+      } else if (now < xmasDate) {
+        const diffDays = Math.ceil((xmasDate - now) / (1000 * 60 * 60 * 24));
+        statusBanner.textContent = `🎄 距離聖誕節還有 ${diffDays} 天`;
+      } else {
+        statusBanner.textContent = `✨ Merry Christmas! 24 份驚喜全部解鎖`;
+      }
+    }
+
+    function isUnlocked(day) {
+      if (previewMode) return true;
+      const now = new Date();
+      return (now.getMonth() === 11 && now.getDate() >= day) || now.getFullYear() > 2026;
+    }
+
+    function renderGrid() {
+      grid.innerHTML = "";
+      const now = new Date();
+
+      calendarData.forEach(item => {
+        const unlocked = isUnlocked(item.day);
+        const isToday = now.getMonth() === 11 && now.getDate() === item.day;
+        const assignedGift = drawnMap[item.day];
+        const isFixed = FIXED_DAYS.includes(item.day);
+
+        const door = document.createElement("div");
+        door.className = `door ${unlocked ? "" : "locked"} ${assignedGift ? "opened" : ""} ${isToday ? "today" : ""} ${item.day === 24 ? "special" : ""}`;
+
+        let tagText = "未解鎖";
+        if (assignedGift) {
+          tagText = `禮物 #${assignedGift} ✓`;
+        } else if (unlocked) {
+          tagText = isFixed ? "固定驚喜" : "點擊抽獎 🎰";
+        }
+
+        door.innerHTML = `
+          <div class="door-num">${item.day}</div>
+          <div class="door-tag">${tagText}</div>
+        `;
+
+        door.addEventListener("click", () => {
+          if (!unlocked) {
+            alert(`還不能偷看喔！12 月 ${item.day} 號才會解鎖 🎄`);
+            return;
+          }
+          openModal(item);
+        });
+
+        grid.appendChild(door);
+      });
+    }
+
+    function openModal(item) {
+      currentDay = item.day;
+      const isFixed = FIXED_DAYS.includes(item.day);
+
+      document.getElementById("modalDate").textContent = `DECEMBER ${item.day}`;
+      document.getElementById("modalTitle").textContent = item.title;
+      document.getElementById("modalMission").textContent = item.mission;
+      document.getElementById("modalMsg").textContent = item.message;
+
+      const musicEl = document.getElementById("modalMusic");
+      if (item.music) {
+        musicEl.href = item.music;
+        musicEl.style.display = "inline-block";
+      } else {
+        musicEl.style.display = "none";
+      }
+
+      lotteryNumber.classList.remove("pop-num");
+
+      if (isFixed) {
+        drawnMap[item.day] = item.day;
+        saveDrawnMap();
+        renderGrid();
+
+        lotteryLabel.textContent = item.day === 24 ? "平安夜壓軸禮物" : "今日指定禮物";
+        lotteryNumber.textContent = `#${item.day}`;
+        drawBtn.style.display = "none";
+      } else if (drawnMap[item.day]) {
+        lotteryLabel.textContent = "今天抽到的禮物是";
+        lotteryNumber.textContent = `#${drawnMap[item.day]}`;
+        drawBtn.style.display = "none";
+      } else {
+        lotteryLabel.textContent = "今天要拆哪一包呢？";
+        lotteryNumber.textContent = "#?";
+        drawBtn.style.display = "inline-block";
+        drawBtn.disabled = false;
+        drawBtn.textContent = "🎰 抽出今天要拆幾號！";
+      }
+
+      modalBackdrop.classList.add("active");
+    }
+
+    drawBtn.addEventListener("click", () => {
+      if (isRolling || drawnMap[currentDay]) return;
+      const remaining = getRemainingNumbers();
+      if (remaining.length === 0) return;
+
+      isRolling = true;
+      drawBtn.disabled = true;
+      drawBtn.textContent = "抽獎中...";
+
+      const finalGift = remaining[Math.floor(Math.random() * remaining.length)];
+      let ticks = 0;
+      const totalTicks = 18;
+
+      const timer = setInterval(() => {
+        const fakeNum = remaining[Math.floor(Math.random() * remaining.length)];
+        lotteryNumber.textContent = `#${fakeNum}`;
+        ticks++;
+
+        if (ticks >= totalTicks) {
+          clearInterval(timer);
+          lotteryNumber.textContent = `#${finalGift}`;
+          lotteryNumber.classList.add("pop-num");
+          lotteryLabel.textContent = "🎉 恭喜抽中！今天拆這包";
+          drawBtn.style.display = "none";
+
+          drawnMap[currentDay] = finalGift;
+          saveDrawnMap();
+          renderGrid();
+          isRolling = false;
+        }
+      }, 70);
+    });
+
+    document.getElementById("closeModal").addEventListener("click", () => {
+      if (!isRolling) modalBackdrop.classList.remove("active");
+    });
+
+    modalBackdrop.addEventListener("click", (e) => {
+      if (e.target === modalBackdrop && !isRolling) modalBackdrop.classList.remove("active");
+    });
+
+    devToggle.addEventListener("click", () => {
+      previewMode = !previewMode;
+      devToggle.textContent = `測試模式：${previewMode ? "開（全部解鎖）" : "關"}`;
+      renderGrid();
+    });
+
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      if (confirm("確定要清空所有抽獎與開箱紀錄嗎？")) {
+        drawnMap = {};
+        saveDrawnMap();
+        renderGrid();
+      }
+    });
+
+    // 下雪動畫
+    const canvas = document.getElementById("snow");
+    const ctx = canvas.getContext("2d");
+    let flakes = [];
+    function initSnow() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      flakes = Array.from({ length: 45 }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        r: Math.random() * 2.5 + 1,
+        d: Math.random() * 0.8 + 0.3
+      }));
+    }
+    function drawSnow() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+      ctx.beginPath();
+      flakes.forEach(f => {
+        ctx.moveTo(f.x, f.y);
+        ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+        f.y += f.d;
+        f.x += Math.sin(f.y * 0.01) * 0.3;
+        if (f.y > canvas.height) { f.y = -5; f.x = Math.random() * canvas.width; }
+      });
+      ctx.fill();
+      requestAnimationFrame(drawSnow);
+    }
+    window.addEventListener("resize", initSnow);
+    initSnow();
+    drawSnow();
+
+    updateBanner();
+    renderGrid();
+  </script>
+</body>
+</html>
