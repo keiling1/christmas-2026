@@ -275,7 +275,6 @@
       border-bottom: 1px dashed #1f352d;
     }
 
-    /* 隱藏式測試工具（連點大標題 5 下顯示） */
     .dev-bar {
       position: fixed;
       bottom: 16px;
@@ -337,10 +336,16 @@
 
   <div class="dev-bar" id="devBar">
     <button class="dev-btn" id="devToggle">測試模式：關</button>
-    <button class="dev-btn" id="resetBtn">重置抽獎紀錄</button>
+    <button class="dev-btn" id="resetBtn">重置試算表紀錄</button>
   </div>
 
   <script>
+    // ========================================================
+    // 👇 只要把你的 Google Apps Script 網頁應用程式網址貼在這裡 👇
+    // 例如："https://script.google.com/macros/s/AKfycb.../exec"
+    // ========================================================
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx4-eABZkwTLJezOG-MWH55b4RbMf10ZgI03pGwmxPrNFTcrNGcoPmXe5r9uDk7uf5Q/exec";
+
     const calendarData = [
       {
         day: 1,
@@ -514,12 +519,12 @@
 
     const FIXED_DAYS = [1, 2, 3, 24];
     const LOTTERY_POOL = Array.from({ length: 20 }, (_, i) => i + 4);
+    const HAS_SHEET = GOOGLE_SCRIPT_URL.startsWith("http");
 
     let previewMode = false;
     let currentDay = null;
     let isRolling = false;
     let titleClicks = 0;
-
     let drawnMap = JSON.parse(localStorage.getItem("adventDrawnMap") || "{}");
 
     const grid = document.getElementById("calendarGrid");
@@ -540,8 +545,52 @@
       }
     });
 
-    function saveDrawnMap() {
+    // 從 Google Sheet 讀取最新紀錄
+    async function loadFromSheet() {
+      if (!HAS_SHEET) return;
+      try {
+        const res = await fetch(GOOGLE_SCRIPT_URL);
+        const data = await res.json();
+        drawnMap = data || {};
+        localStorage.setItem("adventDrawnMap", JSON.stringify(drawnMap));
+        renderGrid();
+      } catch (err) {
+        console.warn("試算表讀取失敗，暫用本機紀錄：", err);
+      }
+    }
+
+    // 寫入單日紀錄到 Google Sheet
+    async function saveDayToSheet(day, giftNum) {
+      drawnMap[day] = giftNum;
       localStorage.setItem("adventDrawnMap", JSON.stringify(drawnMap));
+      if (!HAS_SHEET) return;
+      try {
+        await fetch(GOOGLE_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ day, gift: giftNum })
+        });
+      } catch (err) {
+        console.warn("試算表寫入失敗：", err);
+      }
+    }
+
+    // 清空試算表與本機紀錄
+    async function clearSheet() {
+      drawnMap = {};
+      localStorage.setItem("adventDrawnMap", JSON.stringify(drawnMap));
+      if (HAS_SHEET) {
+        try {
+          await fetch(GOOGLE_SCRIPT_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ action: "reset" })
+          });
+        } catch (err) {
+          console.warn("試算表清除失敗：", err);
+        }
+      }
+      renderGrid();
     }
 
     function getRemainingNumbers() {
@@ -628,10 +677,10 @@
       lotteryNumber.classList.remove("pop-num");
 
       if (isFixed) {
-        drawnMap[item.day] = item.day;
-        saveDrawnMap();
-        renderGrid();
-
+        if (!drawnMap[item.day]) {
+          saveDayToSheet(item.day, item.day);
+          renderGrid();
+        }
         lotteryLabel.textContent = item.day === 24 ? "平安夜壓軸禮物" : "今日指定禮物";
         lotteryNumber.textContent = `#${item.day}`;
         drawBtn.style.display = "none";
@@ -675,8 +724,7 @@
           lotteryLabel.textContent = "🎉 恭喜抽中！今天拆這包";
           drawBtn.style.display = "none";
 
-          drawnMap[currentDay] = finalGift;
-          saveDrawnMap();
+          saveDayToSheet(currentDay, finalGift);
           renderGrid();
           isRolling = false;
         }
@@ -698,10 +746,8 @@
     });
 
     document.getElementById("resetBtn").addEventListener("click", () => {
-      if (confirm("確定要清空所有抽獎與開箱紀錄嗎？")) {
-        drawnMap = {};
-        saveDrawnMap();
-        renderGrid();
+      if (confirm("確定要清空 Google 試算表與本機的所有抽獎紀錄嗎？")) {
+        clearSheet();
       }
     });
 
@@ -739,6 +785,7 @@
 
     updateBanner();
     renderGrid();
+    loadFromSheet();
   </script>
 </body>
 </html>
